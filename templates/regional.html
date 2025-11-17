@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>지역별 실거래가 조회</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+        }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #f5f7fb;
+            color: #1f2430;
+        }
+        header {
+            background: linear-gradient(135deg, #3a7bd5 0%, #3a6073 100%);
+            color: #fff;
+            padding: 36px 20px 28px;
+            text-align: center;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+        header p {
+            margin: 8px 0 0;
+            opacity: 0.85;
+        }
+        header a {
+            color: #fff;
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #fff;
+            text-decoration: none;
+            margin-top: 12px;
+            font-weight: 600;
+        }
+        main {
+            max-width: 1100px;
+            margin: -30px auto 40px;
+            padding: 0 16px;
+        }
+        .card {
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 20px 35px rgba(32, 56, 117, 0.12);
+            padding: 22px;
+            margin-bottom: 20px;
+        }
+        form.filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px;
+            align-items: end;
+        }
+        label {
+            font-size: 13px;
+            color: #556070;
+            display: block;
+            margin-bottom: 6px;
+        }
+        select, input[type="month"], input[type="text"] {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid #d9dff0;
+            font-size: 15px;
+        }
+        button {
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: none;
+            background: #3a7bd5;
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        button:hover {
+            transform: translateY(-1px);
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+            margin-bottom: 12px;
+        }
+        .stat {
+            background: #f6f8ff;
+            border-radius: 16px;
+            padding: 16px;
+        }
+        .stat h3 {
+            margin: 0;
+            font-size: 13px;
+            color: #5f6c8f;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .stat .value {
+            margin-top: 8px;
+            font-size: 22px;
+            font-weight: 700;
+            color: #1f2430;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px 10px;
+            text-align: left;
+            font-size: 14px;
+            border-bottom: 1px solid #eef1f7;
+        }
+        th {
+            font-size: 13px;
+            color: #54617d;
+        }
+        tbody tr:nth-child(even) {
+            background: #fafbff;
+        }
+        .error {
+            background: #fff3f3;
+            color: #b42318;
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 18px;
+        }
+        .empty {
+            text-align: center;
+            padding: 30px 0;
+            color: #7a839f;
+        }
+        @media (max-width: 640px) {
+            table {
+                display: block;
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>지역별 국토교통부 실거래가</h1>
+        <p>국토교통부 RTMS 오픈 API를 통해 지역과 월별 실거래 아파트 가격을 조회합니다.</p>
+        <a class="back-link" href="/">← 대시보드로 돌아가기</a>
+    </header>
+    <main>
+        <section class="card">
+            <h2 style="margin:0 0 12px; font-size:20px; color:#2b3144;">최근 7개년 CSV & 그래프</h2>
+            <p style="margin:0 0 12px; color:#5f6c8f;">평형 범위를 지정하면 최근 7개년 실거래 데이터를 CSV로 로컬에 저장하고, 저장된 값을 기반으로 평균 거래가 추이를 그립니다.</p>
+            <form class="filters" method="get">
+                <input type="hidden" name="history" value="1">
+                <input type="hidden" name="region" value="{{ selected_region_code }}">
+                <input type="hidden" name="month" value="{{ month_input }}">
+                <input type="hidden" name="keyword" value="{{ keyword }}">
+                <div>
+                    <label for="history_region">CSV 대상 지역</label>
+                    <select id="history_region" name="history_region">
+                        {% for option in region_options %}
+                            <option value="{{ option.code }}" {% if option.code == history_region_code %}selected{% endif %}>{{ option.name }} ({{ option.code }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="pyeong_min">평형 최소 (평)</label>
+                    <input id="pyeong_min" name="pyeong_min" type="number" step="0.1" min="1" value="{{ pyeong_min or 20 }}">
+                </div>
+                <div>
+                    <label for="pyeong_max">평형 최대 (평)</label>
+                    <input id="pyeong_max" name="pyeong_max" type="number" step="0.1" min="1" value="{{ pyeong_max or 40 }}">
+                </div>
+                <div>
+                    <button type="submit">CSV 저장 & 그래프 보기</button>
+                </div>
+            </form>
+            {% if history_error %}
+                <div class="error" style="margin-top:14px;">{{ history_error }}</div>
+            {% elif history_chart %}
+                <div style="margin-top:18px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                    {% if history_csv %}
+                        <a href="{{ url_for('download_export', filename=history_csv) }}" style="padding:10px 14px; background:#eff4ff; border-radius:12px; text-decoration:none; color:#2b3144; font-weight:600;">CSV 다운로드</a>
+                        <span style="color:#5f6c8f;">저장 위치: exports/{{ history_csv }}</span>
+                    {% endif %}
+                </div>
+                <div style="margin-top:18px;">
+                    <canvas id="historyChart" height="120"></canvas>
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <form class="filters" method="get">
+                <div>
+                    <label for="region">조회 지역</label>
+                    <select id="region" name="region">
+                        {% for option in region_options %}
+                            <option value="{{ option.code }}" {% if option.code == selected_region_code %}selected{% endif %}>{{ option.name }} ({{ option.code }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="month">거래년월</label>
+                    <input id="month" type="month" name="month" value="{{ month_input }}">
+                </div>
+                <div>
+                    <label for="keyword">아파트명 필터 (선택)</label>
+                    <input id="keyword" type="text" name="keyword" placeholder="예: 푸르지오" value="{{ keyword }}">
+                </div>
+                <div>
+                    <button type="submit">조회하기</button>
+                </div>
+            </form>
+        </section>
+
+        {% if error_message %}
+            <div class="error">{{ error_message }}</div>
+        {% endif %}
+
+        {% if transactions %}
+            <section class="card">
+                <h2 style="margin:0 0 16px; font-size:20px; color:#2b3144;">
+                    {{ selected_region }} · {{ month_input }} 실거래 내역
+                </h2>
+                <div class="stats-grid">
+                    <div class="stat">
+                        <h3>총 거래</h3>
+                        <div class="value">{{ summary.count }}건</div>
+                    </div>
+                    <div class="stat">
+                        <h3>평균 거래가</h3>
+                        <div class="value">{{ summary.avg_price_display }}</div>
+                    </div>
+                    <div class="stat">
+                        <h3>최고 거래</h3>
+                        <div class="value">
+                            {% if summary.max_record %}
+                                {{ summary.max_record.apartment }}<br>{{ summary.max_record.price_display }}
+                            {% else %}-{% endif %}
+                        </div>
+                    </div>
+                    <div class="stat">
+                        <h3>최저 거래</h3>
+                        <div class="value">
+                            {% if summary.min_record %}
+                                {{ summary.min_record.apartment }}<br>{{ summary.min_record.price_display }}
+                            {% else %}-{% endif %}
+                        </div>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>거래일</th>
+                            <th>법정동</th>
+                            <th>아파트명</th>
+                            <th>전용면적(㎡)</th>
+                            <th>층</th>
+                            <th>건축년도</th>
+                            <th>거래유형</th>
+                            <th>거래금액</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tx in transactions %}
+                            <tr>
+                                <td>{{ tx.date or '-' }}</td>
+                                <td>{{ tx.legal_dong }}</td>
+                                <td>{{ tx.apartment }}</td>
+                                <td>{{ '%.1f'|format(tx.area) if tx.area else '-' }}</td>
+                                <td>{{ tx.floor or '-' }}</td>
+                                <td>{{ tx.build_year or '-' }}</td>
+                                <td>{{ tx.deal_type }}</td>
+                                <td>{{ tx.price_display }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+        {% elif not error_message %}
+            <section class="card empty">
+                선택한 조건에 해당하는 실거래 데이터가 없습니다.
+            </section>
+        {% endif %}
+    </main>
+    {% if history_chart %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const historyPoints = {{ history_chart | tojson }};
+        const ctx = document.getElementById('historyChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: historyPoints.map(p => p.month),
+                datasets: [{
+                    label: '평균 거래가 (만원)',
+                    data: historyPoints.map(p => p.avg_price),
+                    fill: false,
+                    borderColor: '#3a7bd5',
+                    tension: 0.25,
+                    pointRadius: 3,
+                }]
+            },
+            options: {
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => `${context.parsed.y.toLocaleString()} 만원`
+                        }
+                    },
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { title: { display: true, text: '거래월' } },
+                    y: { title: { display: true, text: '평균 거래가(만원)' } }
+                }
+            }
+        });
+    </script>
+    {% endif %}
+</body>
+</html>

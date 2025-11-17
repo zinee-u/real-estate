@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>부동산 계산기</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            color-scheme: light dark;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #f4f6ff;
+            color: #1f2933;
+        }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 48px 24px 36px;
+            text-align: center;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 32px;
+            font-weight: 700;
+        }
+        header p {
+            margin: 12px 0 0;
+            opacity: 0.88;
+        }
+        main {
+            max-width: 1200px;
+            margin: -40px auto 48px;
+            padding: 0 20px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: #fff;
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: 0 18px 36px rgba(102, 126, 234, 0.15);
+        }
+        .stat-card h3 {
+            margin: 0;
+            font-size: 13px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: #667eea;
+        }
+        .stat-card .value {
+            margin-top: 12px;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+        button {
+            background: #667eea;
+            border: none;
+            color: #fff;
+            padding: 12px 20px;
+            font-weight: 600;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .nav-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 18px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.7);
+            color: #fff;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 12px;
+            backdrop-filter: blur(8px);
+        }
+        .nav-link:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        button.secondary {
+            background: #f093fb;
+        }
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 28px rgba(102, 126, 234, 0.25);
+        }
+        .alert-form {
+            display: none;
+            background: #fff;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 12px 32px rgba(118, 75, 162, 0.12);
+        }
+        .alert-form.active {
+            display: block;
+        }
+        .alert-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid #d7dcff;
+            font-size: 14px;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+        .complex-grid {
+            display: grid;
+            gap: 22px;
+        }
+        .complex-card {
+            background: #fff;
+            border-radius: 22px;
+            padding: 24px;
+            box-shadow: 0 20px 40px rgba(31, 41, 51, 0.12);
+        }
+        .complex-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .complex-header h2 {
+            margin: 0;
+            font-size: 22px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            background: #eef2ff;
+            color: #4451b4;
+        }
+        .badge.up { background: #ecfdf3; color: #046c4e; }
+        .badge.down { background: #fdf2f5; color: #a3063f; }
+        .sparkline {
+            margin: 0;
+            padding: 0;
+            height: 200px;
+            position: relative;
+            overflow-x: auto; /* Add this for horizontal scrolling */
+        }
+        .room-types, .listing-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0 4px;
+        }
+        .room-types th, .room-types td,
+        .listing-table th, .listing-table td {
+            padding: 10px 8px;
+            text-align: left;
+            font-size: 14px;
+        }
+        .room-types th, .listing-table th {
+            color: #667eea;
+            font-weight: 600;
+            border-bottom: 1px solid #e5e9ff;
+        }
+        .room-types tr:nth-child(even),
+        .listing-table tr:nth-child(even) {
+            background: rgba(102, 126, 234, 0.06);
+        }
+        .listing-table a {
+            color: #5b67d4;
+            text-decoration: none;
+        }
+        .listing-table a:hover {
+            text-decoration: underline;
+        }
+        .empty {
+            padding: 12px;
+            border-radius: 12px;
+            background: #f3f4ff;
+            color: #6c708c;
+            font-size: 14px;
+        }
+        @media (max-width: 720px) {
+            header h1 { font-size: 26px; }
+            .complex-card { padding: 18px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🏙️ 부동산 모니터링: {{ current_query }}</h1>
+        <p>직방 공개 데이터를 기반으로 실거래 시세와 실시간 매물을 추적합니다.</p>
+        <div class="search-container" style="margin-top: 20px; max-width: 600px; margin-left: auto; margin-right: auto;">
+            <form action="/" method="get" style="display: flex; gap: 8px;">
+                <input type="text" name="q" value="{{ current_query }}" placeholder="지역명(예: 강남구, 판교동)을 입력하세요" style="flex-grow: 1; padding: 12px 16px; border-radius: 999px; border: 1px solid #fff; background: rgba(255,255,255,0.2); color: #fff; font-size: 16px;">
+                <button type="submit" style="background: #fff; color: #667eea; font-size: 16px;">검색</button>
+            </form>
+            <div style="display:flex; justify-content:center;">
+                <a class="nav-link" href="/regional">지역별 실거래가 보기</a>
+            </div>
+        </div>
+    </header>
+    <main>
+        <section style="max-width:1200px;margin:-40px auto 24px;padding:0 20px;">
+            <div class="complex-card">
+                <h2>대출 계산기 (원리금균등상환)</h2>
+                <div class="alert-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); align-items: flex-end;">
+                    <div>
+                        <label for="loanAmount" style="font-size: 13px; color: #6c708c;">대출 원금 (만원)</label>
+                        <input id="loanAmount" type="number" placeholder="예: 50000">
+                    </div>
+                    <div>
+                        <label for="loanYears" style="font-size: 13px; color: #6c708c;">대출 기간 (년)</label>
+                        <input id="loanYears" type="number" placeholder="예: 30">
+                    </div>
+                    <div>
+                        <label for="interestRate" style="font-size: 13px; color: #6c708c;">연 이자율 (%)</label>
+                        <input id="interestRate" type="number" step="0.01" placeholder="예: 4.5">
+                    </div>
+                    <div>
+                        <label for="repaymentMethod" style="font-size: 13px; color: #6c708c;">상환 방식</label>
+                        <select id="repaymentMethod">
+                            <option value="amortized">원리금균등</option>
+                            <option value="equal">원금균등</option>
+                            <option value="bullet">만기일시</option>
+                        </select>
+                    </div>
+                    <button onclick="calculateLoan()">계산하기</button>
+                </div>
+                <div id="loanResult" style="margin-top: 20px; background: #f8f9ff; border-radius: 12px; padding: 16px;">
+                    <p style="margin: 0; color: #6c708c;">계산기 결과가 여기에 표시됩니다.</p>
+                </div>
+                <hr style="border: none; border-top: 1px solid #eef2ff; margin: 20px 0;">
+                <div>
+                    <label for="neededCashInput" style="font-size: 13px; color: #6c708c; display: block; margin-bottom: 8px;">내 보유 현금 (만원)</label>
+                    <input id="neededCashInput" type="number" placeholder="예: 15000" onkeyup="updateBuyStaySignals()">
+                </div>
+            </div>
+        </section>
+
+        <section class="stats-grid">
+            <div class="stat-card">
+                <h3>전체 매물</h3>
+                <div class="value">{{ stats.total_listings }}</div>
+            </div>
+            <div class="stat-card">
+                <h3>최근 24시간 신규/변동</h3>
+                <div class="value">{{ stats.new_listings }}</div>
+            </div>
+            <div class="stat-card">
+                <h3>평균 매매 시세</h3>
+                <div class="value">{{ stats.avg_price }}</div>
+            </div>
+            <div class="stat-card">
+                <h3>활성 알림</h3>
+                <div class="value">{{ stats.alert_count }}</div>
+            </div>
+            <div class="stat-card">
+                <h3>마지막 업데이트</h3>
+                <div class="value" style="font-size:22px;">{{ stats.last_update }}</div>
+            </div>
+        </section>
+
+        <section class="controls">
+            <button onclick="refreshData()">🔄 새로고침</button>
+            <button onclick="crawlNow()">🕷️ 지금 크롤링</button>
+            <button class="secondary" onclick="toggleAlertForm()">🔔 알림 설정</button>
+            <button class="secondary" onclick="exportData()">📊 데이터 내보내기</button>
+        </section>
+
+        <section id="alertForm" class="alert-form">
+            <h3>가격 알림 설정</h3>
+            <div class="alert-grid">
+                <input id="alertComplex" placeholder="단지명 (선택)">
+                <input id="maxPrice" type="number" placeholder="최대 가격 (만원)">
+                <input id="minArea" type="number" placeholder="최소 면적 (㎡)">
+                <input id="maxArea" type="number" placeholder="최대 면적 (㎡)">
+            </div>
+            <button style="margin-top:12px;" onclick="saveAlert()">저장</button>
+        </section>
+
+        <section class="complex-grid">
+            {% for complex in complexes %}
+            <article class="complex-card">
+                <div class="complex-header">
+                    <div>
+                        <h2>{{ complex.name }}</h2>
+                        <small style="color:#6c708c;">최근 지표값</small>
+                        <div style="font-size:18px; font-weight:600;">{{ complex.latest_sale }}</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <a href="https://fin.land.naver.com/search?q={{ complex.name }}"
+                           target="_blank"
+                           rel="noreferrer"
+                           style="font-size:13px;color:#fff;background:#03C75A;padding:6px 12px;border-radius:999px;text-decoration:none;">
+                            네이버 부동산 검색
+                        </a>
+                        {% if complex.source_url %}
+                        <a href="{{ complex.source_url }}"
+                           target="_blank"
+                           rel="noreferrer"
+                           style="font-size:13px;color:#fff;background:#5b67d4;padding:6px 12px;border-radius:999px;text-decoration:none;">
+                            출처
+                        </a>
+                        {% endif %}
+                        <span class="badge {{ complex.change_direction }}">{{ complex.change_text }}</span>
+                    </div>
+                </div>
+                <div class="sparkline">
+                    <canvas data-name="{{ complex.name }}"></canvas>
+                </div>
+                <h3 style="margin:12px 0 6px;">주요 평형 시세</h3>
+                {% if complex.room_types %}
+                <table class="room-types">
+                    <thead>
+                        <tr>
+                            <th>타입</th>
+                            <th>면적</th>
+                            <th>매매 시세</th>
+                            <th>전월세 시세</th>
+                            <th>대출 가능액</th>
+                            <th>필요 현금</th>
+                            <th>월 상환(추정)</th>
+                            <th>출처</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for rt in complex.room_types %}
+                        <tr onclick="updateChart('{{ complex.name }}', '{{ rt.name }}')" style="cursor: pointer;">
+                            <td>{{ rt.name }}</td>
+                            <td>{{ rt.area }}</td>
+                            <td>{{ rt.sales }}</td>
+                            <td>{{ rt.rent }}</td>
+                            <td>{{ rt.loan_amount }}</td>
+                            <td>{{ rt.needed_cash or '-' }}</td>
+                            <td>{{ rt.monthly_payment }}</td>
+                            <td>
+                                {% if rt.source_url %}
+                                <a href="{{ rt.source_url }}" target="_blank" rel="noreferrer">열기</a>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty">평형별 시세 데이터가 준비되지 않았습니다.</div>
+                {% endif %}
+
+                <h3 style="margin:18px 0 6px;">실시간 매물</h3>
+                {% if complex.listings %}
+                <table class="listing-table">
+                    <thead>
+                        <tr>
+                            <th>가격</th>
+                            <th>타입</th>
+                            <th>면적</th>
+                            <th>층</th>
+                            <th>대출 가능액</th>
+                            <th>필요 현금</th>
+                            <th>월 상환(추정)</th>
+                            <th>출처</th>
+                            <th>추천</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in complex.listings %}
+                        <tr data-needed-cash="{{ item.needed_cash_raw }}">
+                            <td>{{ item.price }} {{ item.monthly_rent }}</td>
+                            <td>{{ item.price_type }}</td>
+                            <td>{{ item.area_type }}</td>
+                            <td>{{ item.floor or '-' }}</td>
+                            <td>{{ item.loan_amount }}</td>
+                            <td>{{ item.needed_cash }}</td>
+                            <td>{{ item.monthly_payment }}</td>
+                            <td>
+                                {% if item.url %}
+                                <a href="{{ item.url }}" target="_blank" rel="noreferrer">모바일</a>
+                                {% endif %}
+                                {% if item.catalog_url %}
+                                {% if item.url %} | {% endif %}
+                                <a href="{{ item.catalog_url }}" target="_blank" rel="noreferrer">직방조회</a>
+                                {% elif item.web_url %}
+                                {% if item.url %} | {% endif %}
+                                <a href="{{ item.web_url }}" target="_blank" rel="noreferrer">검색</a>
+                                {% endif %}
+                                {% if not item.url and not item.web_url %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td class="signal-cell"></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty">현재 공개된 매물이 없습니다.</div>
+                {% endif %}
+            </article>
+            {% endfor %}
+        </section>
+    </main>
+
+
+    <script>
+        const sparklineData = {{ sparkline_json | safe }};
+
+        function refreshData() {
+            window.location.reload();
+        }
+
+        function crawlNow() {
+            if (confirm("야탑동 매물/시세 크롤링을 즉시 실행할까요?")) {
+                fetch("/api/crawl")
+                    .then(resp => resp.json())
+                    .then(data => {
+                        alert(data.message);
+                        setTimeout(() => window.location.reload(), 1200);
+                    })
+                    .catch(err => alert("요청 실패: " + err));
+            }
+        }
+
+        function toggleAlertForm() {
+            const form = document.getElementById("alertForm");
+            form.classList.toggle("active");
+        }
+
+        function saveAlert() {
+            const payload = {
+                complex: document.getElementById("alertComplex").value,
+                maxPrice: document.getElementById("maxPrice").value,
+                minArea: document.getElementById("minArea").value,
+                maxArea: document.getElementById("maxArea").value
+            };
+            fetch("/api/alert/add", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            })
+            .then(resp => resp.json())
+            .then(data => {
+                alert(data.message);
+                window.location.reload();
+            })
+            .catch(err => alert("저장 실패: " + err));
+        }
+
+        function exportData() {
+            window.location.href = "/api/export";
+        }
+
+        function calculateLoan() {
+            const amount = parseFloat(document.getElementById('loanAmount').value) * 10000;
+            const years = parseInt(document.getElementById('loanYears').value);
+            const rate = parseFloat(document.getElementById('interestRate').value);
+            const method = document.getElementById('repaymentMethod').value;
+            const resultContainer = document.getElementById('loanResult');
+
+            if (isNaN(amount) || isNaN(years) || isNaN(rate) || amount <= 0 || years <= 0 || rate <= 0) {
+                resultContainer.innerHTML = `<p style="margin: 0; color: #a3063f;">모든 필드에 유효한 숫자를 입력해주세요.</p>`;
+                return;
+            }
+
+            const monthlyRate = rate / 100 / 12;
+            const totalMonths = years * 12;
+            const formatCurrency = (num) => new Intl.NumberFormat('ko-KR').format(Math.round(num));
+            
+            let html = '';
+
+            if (method === 'amortized') { // 원리금균등
+                const monthlyPayment = (amount * monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) / (Math.pow(1 + monthlyRate, totalMonths) - 1);
+                const totalPayment = monthlyPayment * totalMonths;
+                const totalInterest = totalPayment - amount;
+
+                html = `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px;">
+                        <p style="margin: 0; font-size: 14px; color: #6c708c;">월 상환금 (매월 동일)</p>
+                        <p style="margin: 0; font-size: 16px; font-weight: 600; text-align: right;">약 ${formatCurrency(monthlyPayment)} 원</p>
+                        <p style="margin: 0; font-size: 14px; color: #6c708c;">총 대출 원금</p>
+                        <p style="margin: 0; font-size: 14px; text-align: right;">${formatCurrency(amount)} 원</p>
+                        <p style="margin: 0; font-size: 14px; color: #6c708c;">총 이자</p>
+                        <p style="margin: 0; font-size: 14px; text-align: right;">${formatCurrency(totalInterest)} 원</p>
+                        <p style="margin: 0; font-size: 14px; color: #6c708c;">총 상환금액</p>
+                        <p style="margin: 0; font-size: 14px; text-align: right;">${formatCurrency(totalPayment)} 원</p>
+                    </div>
+                `;
+            } else if (method === 'equal') { // 원금균등
+                const monthlyPrincipal = amount / totalMonths;
+                let totalInterest = 0;
+                let balance = amount;
+                for (let i = 0; i < totalMonths; i++) {
+                    totalInterest += balance * monthlyRate;
+                    balance -= monthlyPrincipal;
+                }
+                const firstMonthPayment = monthlyPrincipal + (amount * monthlyRate);
+                const lastMonthPayment = monthlyPrincipal + (monthlyPrincipal * monthlyRate);
+                const totalPayment = amount + totalInterest;
+
+                html = `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px;">
+                        <p style="margin: 0; font-size: 14px; color: #6c708c;">월 상환금 (초기)</p>
+                        <p style="margin: 0; font-size: 16px; font-weight: 600; text-align: right;">약 ${formatCurrency(firstMonthPayment)} 원</p>
+                        <p style="margin: 0; font-size: 14px; color: #6c708c;">월 상환금 (말기)</p>
+                        <p style="margin: 0; font-size: 14px; text-align: right;">약 ${formatCurrency(lastMonthPayment)} 원</p>
+                        <p style="margin: 0; font-size: 14px; color: #6c708c;">총 이자</p>
+                        <p style="margin: 0; font-size: 14px; text-align: right;">${formatCurrency(totalInterest)} 원</p>
+                        <p style="margin: 0; font-size: 14px; color: #6c708c;">총 상환금액</p>
+                        <p style="margin: 0; font-size: 14px; text-align: right;">${formatCurrency(totalPayment)} 원</p>
+                    </div>
+                `;
+            } else if (method === 'bullet') { // 만기일시
+                const monthlyInterest = amount * monthlyRate;
+                const totalInterest = monthlyInterest * totalMonths;
+                const totalPayment = amount + totalInterest;
+
+                html = `
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px;">
+                        <p style="margin: 0; font-size: 14px; color: #6c708c;">월 상환금 (이자)</p>
+                        <p style="margin: 0; font-size: 16px; font-weight: 600; text-align: right;">약 ${formatCurrency(monthlyInterest)} 원</p>
+                        <p style="margin: 0; font-size: 14px; color: #6c708c;">만기 상환 원금</p>
+                        <p style="margin: 0; font-size: 14px; text-align: right;">${formatCurrency(amount)} 원</p>
+                        <p style="margin: 0; font-size: 14px; color: #6c708c;">총 이자</p>
+                        <p style="margin: 0; font-size: 14px; text-align: right;">${formatCurrency(totalInterest)} 원</p>
+                        <p style="margin: 0; font-size: 14px; color: #6c708c;">총 상환금액</p>
+                        <p style="margin: 0; font-size: 14px; text-align: right;">${formatCurrency(totalPayment)} 원</p>
+                    </div>
+                `;
+            }
+            resultContainer.innerHTML = html;
+        }
+
+        function drawSparkline(canvas, data) {
+            if (!data || !data.prices || data.prices.length < 1) {
+                canvas.parentElement.innerHTML = "<div class='empty'>가격 추세 데이터가 부족합니다.</div>";
+                return;
+            }
+            const ctx = canvas.getContext("2d");
+            
+            if (Chart.getChart(canvas)) {
+                Chart.getChart(canvas).destroy();
+            }
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: '시세 (만원)',
+                        data: data.prices,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 10
+                                },
+                                autoSkip: false, // Disable auto-skipping ticks
+                                maxRotation: 45, // Rotate labels for better readability
+                                minRotation: 45
+                            },
+                            min: data.labels[0],
+                            max: data.labels[data.labels.length - 1]
+                        },
+                        y: {
+                            ticks: {
+                                callback: function(value, index, values) {
+                                    return value.toLocaleString('ko-KR') + '만';
+                                },
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChart(complexName, roomTypeName) {
+            const canvas = document.querySelector(`canvas[data-name="${complexName}"]`);
+            if (!canvas) return;
+
+            const chartData = sparklineData[complexName] && sparklineData[complexName][roomTypeName];
+            if (!chartData) {
+                // Data for this room type might not be available, so we do nothing.
+                return;
+            }
+
+            drawSparkline(canvas, chartData);
+        }
+
+        function updateBuyStaySignals() {
+            const neededCashInput = document.getElementById('neededCashInput');
+            const userCash = parseFloat(neededCashInput.value);
+
+            document.querySelectorAll('.listing-table tbody tr').forEach(row => {
+                const neededCashRaw = row.dataset.neededCash;
+                const signalCell = row.querySelector('.signal-cell');
+                
+                if (!signalCell || neededCashRaw === '' || neededCashRaw === undefined) {
+                    if(signalCell) signalCell.innerHTML = '';
+                    return;
+                }
+
+                const listingNeededCash = parseFloat(neededCashRaw);
+
+                if (isNaN(userCash) || userCash <= 0) {
+                    signalCell.innerHTML = '';
+                    return;
+                }
+
+                if (listingNeededCash <= userCash) {
+                    signalCell.innerHTML = '<span style="color: #046c4e; font-weight: bold;">BUY</span>';
+                } else {
+                    signalCell.innerHTML = '<span style="color: #a3063f; font-weight: bold;">STAY</span>';
+                }
+            });
+        }
+
+        document.querySelectorAll("canvas[data-name]").forEach(canvas => {
+            const name = canvas.dataset.name;
+            // Initially draw the chart for the complex itself
+            if (sparklineData[name] && sparklineData[name][name]) {
+                drawSparkline(canvas, sparklineData[name][name]);
+            }
+        });
+
+        // Set initial state for BUY/STAY signals on page load
+        updateBuyStaySignals();
+    </script>
+</body>
+</html>
